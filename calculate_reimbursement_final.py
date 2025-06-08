@@ -201,22 +201,46 @@ def apply_business_rule_adjustments(base_reimbursement, days, miles, receipts,
     
     return adjusted_reimbursement
 
-# Test the function if run directly
+# Command line interface for run.sh script
 if __name__ == "__main__":
-    # Test with a few known cases
-    test_cases = [
-        (4, 69, 2321.49, 322.00),   # Major outlier case
-        (5, 200, 850.00, 750.00),  # Normal case
-        (8, 795, 1645.99, 644.69), # 8-day case
-        (1, 1082, 1809.49, 446.94) # Same-day extreme
-    ]
+    import sys
     
-    print("🧪 Testing calculate_reimbursement function:")
-    print("=" * 60)
+    # Check if command line arguments provided
+    if len(sys.argv) == 4:
+        # Command line usage: python3 calculate_reimbursement_final.py <days> <miles> <receipts>
+        try:
+            trip_duration_days = int(sys.argv[1])
+            miles_traveled = int(sys.argv[2])
+            total_receipts_amount = float(sys.argv[3])
+            
+            # Calculate and output reimbursement amount
+            reimbursement = calculate_reimbursement(trip_duration_days, miles_traveled, total_receipts_amount)
+            print(f"{reimbursement:.2f}")
+            
+        except ValueError as e:
+            print(f"Error: Invalid input parameters - {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: Calculation failed - {e}", file=sys.stderr)
+            sys.exit(1)
     
-    for days, miles, receipts, expected in test_cases:
-        predicted = calculate_reimbursement(days, miles, receipts)
-        error = abs(predicted - expected)
-        print(f"{days}d, {miles}mi, ${receipts:.2f} → Expected: ${expected:.2f}, Got: ${predicted:.2f}, Error: ${error:.2f}")
-    
-    print("\n✅ Function is working correctly!") 
+    else:
+        # Test mode - run with sample cases if no command line args
+        test_cases = [
+            (4, 69, 2321.49, 322.00),   # Major outlier case
+            (5, 200, 850.00, 750.00),  # Normal case
+            (8, 795, 1645.99, 644.69), # 8-day case
+            (1, 1082, 1809.49, 446.94) # Same-day extreme
+        ]
+        
+        print("🧪 Testing calculate_reimbursement function:")
+        print("=" * 60)
+        
+        for days, miles, receipts, expected in test_cases:
+            predicted = calculate_reimbursement(days, miles, receipts)
+            error = abs(predicted - expected)
+            print(f"{days}d, {miles}mi, ${receipts:.2f} → Expected: ${expected:.2f}, Got: ${predicted:.2f}, Error: ${error:.2f}")
+        
+        print("\n✅ Function is working correctly!")
+        print("\nFor command line usage:")
+        print("python3 calculate_reimbursement_final.py <trip_duration_days> <miles_traveled> <total_receipts_amount>") 

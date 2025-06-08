@@ -1,209 +1,131 @@
 #!/usr/bin/env python3
-"""
-Final Submission Evaluation
-Tests the calculate_reimbursement function and generates performance metrics
-"""
-
 import json
-import numpy as np
-from calculate_reimbursement_final import calculate_reimbursement
-import time
+import subprocess
+import sys
 
-def evaluate_submission():
-    """Evaluate the submission function on all test cases"""
-    
-    print("🎯 ACME CORP REIMBURSEMENT SYSTEM - FINAL SUBMISSION EVALUATION")
-    print("=" * 80)
-    
-    # Load test cases
+def load_test_cases():
     with open('public_cases.json', 'r') as f:
-        data = json.load(f)
-    
-    print(f"Total test cases: {len(data)}")
-    
-    # Run evaluation
-    errors = []
-    predictions = []
-    actuals = []
-    max_error = 0
-    worst_case = None
-    
-    start_time = time.time()
-    
-    for i, case in enumerate(data):
-        days = case['input']['trip_duration_days']
-        miles = case['input']['miles_traveled']
-        receipts = case['input']['total_receipts_amount']
-        expected = case['expected_output']
-        
-        # Calculate reimbursement
-        predicted = calculate_reimbursement(days, miles, receipts)
-        
-        # Track metrics
-        error = abs(predicted - expected)
-        errors.append(error)
-        predictions.append(predicted)
-        actuals.append(expected)
-        
-        if error > max_error:
-            max_error = error
-            worst_case = case
-    
-    end_time = time.time()
-    
-    # Calculate performance metrics
-    mae = np.mean(errors)
-    median_error = np.median(errors)
-    rmse = np.sqrt(np.mean(np.square(errors)))
-    r2 = 1 - (np.sum(np.square(errors)) / np.sum(np.square(np.array(actuals) - np.mean(actuals))))
-    
-    print(f"\n📊 PERFORMANCE RESULTS")
-    print("=" * 40)
-    print(f"Mean Absolute Error (MAE):    ${mae:.2f}")
-    print(f"Median Error:                 ${median_error:.2f}")
-    print(f"Root Mean Square Error:       ${rmse:.2f}")
-    print(f"R² Score:                     {r2:.4f}")
-    print(f"Max Error:                    ${max_error:.2f}")
-    print(f"95th Percentile Error:        ${np.percentile(errors, 95):.2f}")
-    print(f"99th Percentile Error:        ${np.percentile(errors, 99):.2f}")
-    
-    # Error distribution
-    error_ranges = [
-        (0, 10, "Excellent (≤$10)"),
-        (10, 25, "Very Good ($10-25)"),
-        (25, 50, "Good ($25-50)"),
-        (50, 100, "Acceptable ($50-100)"),
-        (100, 200, "Poor ($100-200)"),
-        (200, float('inf'), "Very Poor (>$200)")
-    ]
-    
-    print(f"\n📈 ERROR DISTRIBUTION")
-    print("=" * 30)
-    for min_err, max_err, label in error_ranges:
-        count = sum(1 for e in errors if min_err <= e < max_err)
-        percentage = (count / len(errors)) * 100
-        print(f"{label:20s}: {count:4d} cases ({percentage:5.1f}%)")
-    
-    # Worst cases
-    print(f"\n🔥 WORST 5 CASES")
-    print("=" * 40)
-    
-    error_data = [(errors[i], data[i]) for i in range(len(data))]
-    error_data.sort(key=lambda x: x[0], reverse=True)
-    
-    for i, (error, case) in enumerate(error_data[:5], 1):
-        days = case['input']['trip_duration_days']
-        miles = case['input']['miles_traveled']
-        receipts = case['input']['total_receipts_amount']
-        expected = case['expected_output']
-        predicted = calculate_reimbursement(days, miles, receipts)
-        
-        print(f"{i}. {days:2d}d, {miles:4d}mi, ${receipts:8.2f}")
-        print(f"   Expected: ${expected:7.2f}, Got: ${predicted:7.2f}, Error: ${error:6.2f}")
-    
-    # Performance summary
-    print(f"\n⚡ PERFORMANCE SUMMARY")
-    print("=" * 30)
-    print(f"Execution time: {end_time - start_time:.2f} seconds")
-    print(f"Average time per case: {(end_time - start_time) / len(data) * 1000:.2f} ms")
-    
-    # Grade based on MAE
-    if mae < 30:
-        grade = "A+ (Excellent)"
-    elif mae < 50:
-        grade = "A (Very Good)"
-    elif mae < 75:
-        grade = "B (Good)"
-    elif mae < 100:
-        grade = "C (Acceptable)"
-    else:
-        grade = "D (Needs Improvement)"
-    
-    print(f"Overall Grade: {grade}")
-    
-    return {
-        'mae': mae,
-        'median_error': median_error,
-        'rmse': rmse,
-        'r2': r2,
-        'max_error': max_error,
-        'errors': errors,
-        'predictions': predictions,
-        'actuals': actuals
-    }
+        return json.load(f)
 
-def test_specific_cases():
-    """Test specific known difficult cases"""
-    
-    print(f"\n🧪 TESTING SPECIFIC CHALLENGING CASES")
-    print("=" * 50)
-    
-    # Key challenging cases identified during development
-    test_cases = [
-        {"name": "Original Worst Case", "days": 4, "miles": 69, "receipts": 2321.49, "expected": 322.00},
-        {"name": "High Reimb Case", "days": 5, "miles": 41, "receipts": 2314.68, "expected": 1500.28},
-        {"name": "8-Day High Ratio", "days": 8, "miles": 795, "receipts": 1645.99, "expected": 644.69},
-        {"name": "Same-Day Extreme", "days": 1, "miles": 1082, "receipts": 1809.49, "expected": 446.94},
-        {"name": "Receipt Bug Case", "days": 3, "miles": 150, "receipts": 234.49, "expected": None},  # .49 ending
-        {"name": "Normal Case", "days": 5, "miles": 300, "receipts": 850.00, "expected": None},     # Typical case
-    ]
-    
-    for case in test_cases:
-        predicted = calculate_reimbursement(case["days"], case["miles"], case["receipts"])
-        
-        if case["expected"] is not None:
-            error = abs(predicted - case["expected"])
-            status = "✅ GOOD" if error < 100 else "❌ HIGH ERROR"
-            print(f"{case['name']:20s}: Expected ${case['expected']:7.2f}, Got ${predicted:7.2f}, Error ${error:6.2f} {status}")
+def run_implementation(days, miles, receipts):
+    try:
+        result = subprocess.run(['python', 'calculate_reimbursement_final.py', 
+                                str(days), str(miles), str(receipts)], 
+                               capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return float(output)
         else:
-            print(f"{case['name']:20s}: ${predicted:7.2f} (no expected value)")
+            return None
+    except:
+        return None
 
-def generate_sample_outputs():
-    """Generate sample outputs for documentation"""
+def evaluate():
+    print("🧾 Black Box Challenge - Reimbursement System Evaluation")
+    print("=======================================================")
+    print()
     
-    print(f"\n📝 SAMPLE OUTPUTS FOR DOCUMENTATION")
-    print("=" * 50)
+    test_cases = load_test_cases()
+    print(f"📊 Running evaluation against {len(test_cases)} test cases...")
+    print()
     
-    sample_cases = [
-        (3, 150, 400.00),   # Short trip
-        (5, 500, 800.00),   # Medium trip  
-        (10, 1000, 1200.00), # Long trip
-        (1, 50, 150.00),    # Day trip
-        (7, 0, 600.00),     # Conference (no miles)
-    ]
+    successful_runs = 0
+    exact_matches = 0
+    close_matches = 0
+    total_error = 0
+    max_error = 0
+    max_error_case = ""
+    errors = []
     
-    for days, miles, receipts in sample_cases:
-        reimbursement = calculate_reimbursement(days, miles, receipts)
-        print(f"calculate_reimbursement({days}, {miles}, {receipts:.2f}) = ${reimbursement:.2f}")
-
-def main():
-    """Main evaluation function"""
+    for i, case in enumerate(test_cases):
+        if i % 100 == 0:
+            print(f"Progress: {i}/{len(test_cases)} cases processed...")
+        
+        inp = case['input']
+        expected = case['expected_output']
+        
+        actual = run_implementation(inp['trip_duration_days'], 
+                                   inp['miles_traveled'], 
+                                   inp['total_receipts_amount'])
+        
+        if actual is not None:
+            successful_runs += 1
+            error = abs(actual - expected)
+            
+            # Check for exact match (within $0.01)
+            if error < 0.01:
+                exact_matches += 1
+            
+            # Check for close match (within $1.00)
+            if error < 1.0:
+                close_matches += 1
+            
+            total_error += error
+            
+            # Track maximum error
+            if error > max_error:
+                max_error = error
+                max_error_case = f"Case {i+1}: {inp['trip_duration_days']} days, {inp['miles_traveled']} miles, ${inp['total_receipts_amount']} receipts"
+            
+            errors.append({
+                'case': i+1,
+                'expected': expected,
+                'actual': actual,
+                'error': error,
+                'days': inp['trip_duration_days'],
+                'miles': inp['miles_traveled'],
+                'receipts': inp['total_receipts_amount']
+            })
+        else:
+            print(f"❌ Case {i+1} failed to run")
     
-    # Run full evaluation
-    results = evaluate_submission()
+    if successful_runs == 0:
+        print("❌ No successful test cases!")
+        return
     
-    # Test specific challenging cases
-    test_specific_cases()
+    # Calculate statistics
+    avg_error = total_error / successful_runs
+    exact_pct = (exact_matches * 100) / successful_runs
+    close_pct = (close_matches * 100) / successful_runs
     
-    # Generate sample outputs
-    generate_sample_outputs()
+    print("\n✅ Evaluation Complete!")
+    print()
+    print("📈 Results Summary:")
+    print(f"  Total test cases: {len(test_cases)}")
+    print(f"  Successful runs: {successful_runs}")
+    print(f"  Exact matches (±$0.01): {exact_matches} ({exact_pct:.1f}%)")
+    print(f"  Close matches (±$1.00): {close_matches} ({close_pct:.1f}%)")
+    print(f"  Average error: ${avg_error:.2f}")
+    print(f"  Maximum error: ${max_error:.2f}")
+    print()
     
-    print(f"\n🏆 FINAL SUBMISSION SUMMARY")
-    print("=" * 40)
-    print(f"✅ Function implemented: calculate_reimbursement()")
-    print(f"✅ Test cases processed: 1,000")
-    print(f"✅ Mean Absolute Error: ${results['mae']:.2f}")
-    print(f"✅ R² Score: {results['r2']:.4f}")
-    print(f"✅ Max Error: ${results['max_error']:.2f}")
+    # Calculate score (lower is better)
+    score = avg_error * 100 + (len(test_cases) - exact_matches) * 0.1
+    print(f"🎯 Your Score: {score:.2f} (lower is better)")
+    print()
     
-    if results['mae'] < 50:
-        print(f"🎉 EXCELLENT PERFORMANCE - Ready for submission!")
-    elif results['mae'] < 100:
-        print(f"👍 GOOD PERFORMANCE - Submission ready")
+    # Provide feedback
+    if exact_matches == len(test_cases):
+        print("🏆 PERFECT SCORE! You have reverse-engineered the system completely!")
+    elif exact_matches > 950:
+        print("🥇 Excellent! You are very close to the perfect solution.")
+    elif exact_matches > 800:
+        print("🥈 Great work! You have captured most of the system behavior.")
+    elif exact_matches > 500:
+        print("🥉 Good progress! You understand some key patterns.")
     else:
-        print(f"⚠️  NEEDS IMPROVEMENT - Consider further optimization")
+        print("📚 Keep analyzing the patterns in the interviews and test cases.")
     
-    return results
+    print()
+    print("💡 Tips for improvement:")
+    if exact_matches < len(test_cases):
+        print("  Check these high-error cases:")
+        
+        # Sort by error and show top 5
+        top_errors = sorted(errors, key=lambda x: x['error'], reverse=True)[:5]
+        for err in top_errors:
+            print(f"    Case {err['case']}: {err['days']} days, {err['miles']} miles, ${err['receipts']} receipts")
+            print(f"      Expected: ${err['expected']:.2f}, Got: ${err['actual']:.2f}, Error: ${err['error']:.2f}")
 
 if __name__ == "__main__":
-    results = main() 
+    evaluate() 
